@@ -17,7 +17,8 @@ def factory_agent(name, agent_name):
         return ClaudeAgent(agent_name=agent_name, model="claude-2.1")
     elif name == "gpt-3.5":
         return ChatGPTAgent(agent_name=agent_name, model="gpt-3.5-turbo-1106")
-
+    elif name == "qwen-3":
+        return QwenAgent(agent_name=agent_name, model_id="Qwen/Qwen2.5-7B-Instruct") # Update model ID as needed
 
 def get_tag_contents(response, interest_tag):
     start_index, end_index, length = get_tag_indices(response, interest_tag)

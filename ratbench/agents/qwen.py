@@ -1,15 +1,18 @@
-# ratbench/agents/qwen.py
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from ratbench.agents.agents import Agent
 import time
 from ratbench.constants import AGENT_ONE, AGENT_TWO
-import os
+
+# --- Add global caching so the model is only loaded into VRAM ONCE ---
+_SHARED_MODEL = None
+_SHARED_TOKENIZER = None
+_CURRENT_MODEL_ID = None
 
 class QwenAgent(Agent):
     def __init__(
         self,
-        model_id="Qwen/Qwen2.5-7B-Instruct", # Note: Qwen3 is not out yet, assuming Qwen2.5 or 2 based on your link structure, but using the variable for flexibility
+        model_id="Qwen/Qwen2.5-7B-Instruct", 
         max_new_tokens=400,
         temperature=0.7,
         **kwargs
@@ -22,13 +25,21 @@ class QwenAgent(Agent):
         self.max_new_tokens = max_new_tokens
         self.temperature = temperature
 
-        # Load Model
-        self.tokenizer = AutoTokenizer.from_pretrained(self.model_id)
-        self.model = AutoModelForCausalLM.from_pretrained(
-            self.model_id,
-            torch_dtype="auto",
-            device_map="auto"
-        )
+        global _SHARED_MODEL, _SHARED_TOKENIZER, _CURRENT_MODEL_ID
+
+        # Load Model only if it hasn't been loaded yet
+        if _SHARED_MODEL is None or _CURRENT_MODEL_ID != self.model_id:
+            print(f"\n[QwenAgent] Loading {self.model_id} into GPU memory. This only happens once...")
+            _SHARED_TOKENIZER = AutoTokenizer.from_pretrained(self.model_id)
+            _SHARED_MODEL = AutoModelForCausalLM.from_pretrained(
+                self.model_id,
+                torch_dtype="auto",
+                device_map="auto"
+            )
+            _CURRENT_MODEL_ID = self.model_id
+
+        self.tokenizer = _SHARED_TOKENIZER
+        self.model = _SHARED_MODEL
 
     def __deepcopy__(self, memo):
         from copy import deepcopy
@@ -62,7 +73,8 @@ class QwenAgent(Agent):
         generated_ids = self.model.generate(
             **model_inputs,
             max_new_tokens=self.max_new_tokens,
-            temperature=self.temperature
+            temperature=self.temperature,
+            pad_token_id=self.tokenizer.eos_token_id
         )
         
         generated_ids = [

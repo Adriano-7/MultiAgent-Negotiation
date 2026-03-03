@@ -17,4 +17,4 @@ set +a
 
 export HF_HOME="/data/01/up202105352/huggingface"
 
-python3 runner/buysell_qwen.py
+python runner/buysell_qwen_full.py --num_runs 30

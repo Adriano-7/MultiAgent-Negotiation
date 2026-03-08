@@ -1,24 +1,50 @@
+
 import os
 import copy
 from ratbench.agents import ChatGPTAgent, ClaudeAgent
 
-def factory_agent(name, agent_name):
+# Lazy import to avoid loading torch when not needed
+_HF_AGENT = None
+
+def _get_hf_agent_class():
+    global _HF_AGENT
+    if _HF_AGENT is None:
+        from ratbench.agents.hf_agent import HuggingFaceAgent
+        _HF_AGENT = HuggingFaceAgent
+    return _HF_AGENT
+
+
+def factory_agent(name, agent_name, **kwargs):
     """
-    Simple factory to create agents
-    :param name:
-    :param agent_name:
-    :return:
+    Factory to create agents by short name or HuggingFace model_id.
+
+    Short names (backwards compatible):
+        "gpt-4", "gpt-3.5", "claude-2", "claude-2.1"
+
+    HuggingFace models (new):
+        Any string containing "/" is treated as a HF model_id:
+        "Qwen/Qwen2.5-7B-Instruct", "deepseek-ai/DeepSeek-V2-Lite-Chat", etc.
     """
+    # ── Legacy API-based agents ──
     if name == "gpt-4":
         return ChatGPTAgent(agent_name=agent_name, model="gpt-4-1106-preview")
+    elif name == "gpt-3.5":
+        return ChatGPTAgent(agent_name=agent_name, model="gpt-3.5-turbo-1106")
     elif name == "claude-2":
         return ClaudeAgent(agent_name=agent_name, model="claude-2")
     elif name == "claude-2.1":
         return ClaudeAgent(agent_name=agent_name, model="claude-2.1")
-    elif name == "gpt-3.5":
-        return ChatGPTAgent(agent_name=agent_name, model="gpt-3.5-turbo-1106")
-    elif name == "qwen-3":
-        return QwenAgent(agent_name=agent_name, model_id="Qwen/Qwen2.5-7B-Instruct") # Update model ID as needed
+
+    # ── HuggingFace open-weight models ──
+    elif "/" in name:
+        HFAgent = _get_hf_agent_class()
+        return HFAgent(agent_name=agent_name, model_id=name, **kwargs)
+
+    else:
+        raise ValueError(
+            f"Unknown agent: {name}. Use a short name (gpt-4, claude-2, ...) "
+            f"or a HuggingFace model_id (org/model-name)."
+        )
 
 def get_tag_contents(response, interest_tag):
     start_index, end_index, length = get_tag_indices(response, interest_tag)

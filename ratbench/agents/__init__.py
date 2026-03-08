@@ -12,3 +12,8 @@ try:
     from .llama2 import LLama2ChatAgent
 except ImportError:
     LLama2ChatAgent = None
+
+try:                                       
+    from .hf_agent import HuggingFaceAgent
+except ImportError:
+    HuggingFaceAgent = None

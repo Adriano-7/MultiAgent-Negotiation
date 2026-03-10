@@ -9,7 +9,7 @@
 #SBATCH --mem=64G
 #SBATCH -p normal
 #SBATCH --qos=gpu_batch
-#SBATCH --gres=gpu:2
+#SBATCH --gres=gpu:1
 
 # ============================================================
 # Parameterised SLURM launcher for NegotiationArena

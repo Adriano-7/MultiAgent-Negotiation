@@ -14,7 +14,7 @@ Usage:
 """
 
 import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig 
 from ratbench.agents.agents import Agent
 import time
 from ratbench.constants import AGENT_ONE, AGENT_TWO
@@ -26,16 +26,26 @@ from ratbench.constants import AGENT_ONE, AGENT_TWO
 _SHARED_MODELS: dict = {}  # model_id -> (model, tokenizer)
 
 
-def _load_model(model_id: str, dtype="auto", device_map="auto"):
+def _load_model(model_id: str, dtype=torch.bfloat16, device_map="auto"):
     """Load or retrieve a cached (model, tokenizer) pair."""
     if model_id not in _SHARED_MODELS:
         print(f"\n[HuggingFaceAgent] Loading {model_id} … (one-time)")
         tokenizer = AutoTokenizer.from_pretrained(model_id, trust_remote_code=True)
+        
+        # Configure 4-bit quantization to save VRAM
+        quantization_config = BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_compute_dtype=dtype,
+            bnb_4bit_use_double_quant=True,
+            bnb_4bit_quant_type="nf4"
+        )
+
         model = AutoModelForCausalLM.from_pretrained(
             model_id,
             torch_dtype=dtype,
             device_map=device_map,
             trust_remote_code=True,
+            quantization_config=quantization_config
         )
         _SHARED_MODELS[model_id] = (model, tokenizer)
     return _SHARED_MODELS[model_id]

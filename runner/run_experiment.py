@@ -7,12 +7,16 @@ Supports both self-play and cross-play via the `cross_play` config key:
   - true:            cross-play only (A vs B, B vs A — all ordered pairs, no self-play)
   - "all":           both            (A vs A, A vs B, B vs A, B vs B)
 
+Supports persona / social_behaviour experiments via config:
+  - p1_behaviour / p2_behaviour per setup (default: "")
+  - behaviour_name: human-readable label used in log directory names
+
 Usage:
     # Run all models / pairs from config
     python runner/run_experiment.py --config configs/experiments.yaml --experiment buysell_section_one
 
     # Run only games where a specific model participates (as P1, P2, or both)
-    python runner/run_experiment.py --config configs/experiments.yaml --experiment buysell_section_one_cross --model "Qwen/Qwen2.5-7B-Instruct"
+    python runner/run_experiment.py --config configs/experiments.yaml --experiment buysell_section_one --model "Qwen/Qwen2.5-7B-Instruct"
 """
 
 import sys
@@ -26,7 +30,7 @@ import traceback
 import yaml
 from dotenv import load_dotenv
 
-from ratbench.agents.hf_agent import HuggingFaceAgent
+from ratbench.utils import factory_agent
 from ratbench.game_objects.resource import Resources
 from ratbench.game_objects.goal import (
     BuyerGoal,
@@ -71,7 +75,15 @@ def run_buysell(model_p1, model_p2, setup, num_runs, iterations, log_base):
     seller_val = setup["seller_val"]
     buyer_val = setup["buyer_val"]
     money = setup.get("money", 100)
+
+    #  Persona / social behaviour support 
+    p1_behaviour = setup.get("p1_behaviour", "")
+    p2_behaviour = setup.get("p2_behaviour", "")
+    behaviour_name = setup.get("behaviour_name", "")
+
     tag = f"seller{seller_val}_buyer{buyer_val}"
+    if behaviour_name:
+        tag = f"{tag}_{behaviour_name}"
     pair_tag = f"{_safe_name(model_p1)}_vs_{_safe_name(model_p2)}"
     log_dir = os.path.join(log_base, pair_tag, tag)
 
@@ -79,8 +91,8 @@ def run_buysell(model_p1, model_p2, setup, num_runs, iterations, log_base):
     for i in range(num_runs):
         try:
             print(f"[buysell] Run {i+1}/{num_runs} | {pair_tag} | {tag}")
-            a1 = HuggingFaceAgent(agent_name=AGENT_ONE, model_id=model_p1)
-            a2 = HuggingFaceAgent(agent_name=AGENT_TWO, model_id=model_p2)
+            a1 = factory_agent(model_p1, agent_name=AGENT_ONE)
+            a2 = factory_agent(model_p2, agent_name=AGENT_TWO)
 
             game = BuySellGame(
                 players=[a1, a2],
@@ -98,7 +110,7 @@ def run_buysell(model_p1, model_p2, setup, num_runs, iterations, log_base):
                     f"You are {AGENT_ONE}.",
                     f"You are {AGENT_TWO}.",
                 ],
-                player_social_behaviour=["", ""],
+                player_social_behaviour=[p1_behaviour, p2_behaviour],
                 log_dir=log_dir,
             )
             game.run()
@@ -114,17 +126,26 @@ def run_buysell(model_p1, model_p2, setup, num_runs, iterations, log_base):
 def run_trading(model_p1, model_p2, setup, num_runs, iterations, log_base):
     p1_res = setup["p1_resources"]
     p2_res = setup["p2_resources"]
+
+    #  Persona / social behaviour support 
+    p1_behaviour = setup.get("p1_behaviour", "")
+    p2_behaviour = setup.get("p2_behaviour", "")
+    behaviour_name = setup.get("behaviour_name", "")
+
     pair_tag = f"{_safe_name(model_p1)}_vs_{_safe_name(model_p2)}"
-    log_dir = os.path.join(log_base, pair_tag)
+    log_tag = pair_tag
+    if behaviour_name:
+        log_tag = f"{pair_tag}_{behaviour_name}"
+    log_dir = os.path.join(log_base, log_tag)
 
     success, errors = 0, 0
     for i in range(num_runs):
         try:
-            print(f"[trading] Run {i+1}/{num_runs} | {pair_tag}")
+            print(f"[trading] Run {i+1}/{num_runs} | {log_tag}")
             r1 = Resources(p1_res)
             r2 = Resources(p2_res)
-            a1 = HuggingFaceAgent(agent_name=AGENT_ONE, model_id=model_p1)
-            a2 = HuggingFaceAgent(agent_name=AGENT_TWO, model_id=model_p2)
+            a1 = factory_agent(model_p1, agent_name=AGENT_ONE)
+            a2 = factory_agent(model_p2, agent_name=AGENT_TWO)
 
             game = TradingGame(
                 players=[a1, a2],
@@ -132,7 +153,7 @@ def run_trading(model_p1, model_p2, setup, num_runs, iterations, log_base):
                 resources_support_set=Resources({k: 0 for k in p1_res}),
                 player_goals=[MaximisationGoal(r1), MaximisationGoal(r2)],
                 player_initial_resources=[r1, r2],
-                player_social_behaviour=["", ""],
+                player_social_behaviour=[p1_behaviour, p2_behaviour],
                 player_roles=[
                     f"You are {AGENT_ONE}, start by making a proposal.",
                     f"You are {AGENT_TWO}, start by responding to a trade.",
@@ -145,21 +166,30 @@ def run_trading(model_p1, model_p2, setup, num_runs, iterations, log_base):
             errors += 1
             traceback.print_exc()
 
-    print(f"  ✓ {pair_tag}: {success} ok, {errors} errors")
+    print(f"  ✓ {log_tag}: {success} ok, {errors} errors")
     return success, errors
 
 
 def run_ultimatum(model_p1, model_p2, setup, num_runs, iterations, log_base):
     dollars = setup.get("dollars", 100)
+
+    #  Persona / social behaviour support 
+    p1_behaviour = setup.get("p1_behaviour", "")
+    p2_behaviour = setup.get("p2_behaviour", "")
+    behaviour_name = setup.get("behaviour_name", "")
+
     pair_tag = f"{_safe_name(model_p1)}_vs_{_safe_name(model_p2)}"
-    log_dir = os.path.join(log_base, pair_tag)
+    log_tag = pair_tag
+    if behaviour_name:
+        log_tag = f"{pair_tag}_{behaviour_name}"
+    log_dir = os.path.join(log_base, log_tag)
 
     success, errors = 0, 0
     for i in range(num_runs):
         try:
-            print(f"[ultimatum] Run {i+1}/{num_runs} | {pair_tag}")
-            a1 = HuggingFaceAgent(agent_name=AGENT_ONE, model_id=model_p1)
-            a2 = HuggingFaceAgent(agent_name=AGENT_TWO, model_id=model_p2)
+            print(f"[ultimatum] Run {i+1}/{num_runs} | {log_tag}")
+            a1 = factory_agent(model_p1, agent_name=AGENT_ONE)
+            a2 = factory_agent(model_p2, agent_name=AGENT_TWO)
 
             game = MultiTurnUltimatumGame(
                 players=[a1, a2],
@@ -170,7 +200,7 @@ def run_ultimatum(model_p1, model_p2, setup, num_runs, iterations, log_base):
                     Resources({"Dollars": dollars}),
                     Resources({"Dollars": 0}),
                 ],
-                player_social_behaviour=["", ""],
+                player_social_behaviour=[p1_behaviour, p2_behaviour],
                 player_roles=[
                     f"You are {AGENT_ONE}.",
                     f"You are {AGENT_TWO}.",
@@ -183,7 +213,7 @@ def run_ultimatum(model_p1, model_p2, setup, num_runs, iterations, log_base):
             errors += 1
             traceback.print_exc()
 
-    print(f"  ✓ {pair_tag}: {success} ok, {errors} errors")
+    print(f"  ✓ {log_tag}: {success} ok, {errors} errors")
     return success, errors
 
 
@@ -219,7 +249,7 @@ def main():
     )
     parser.add_argument(
         "--num_runs",
-        type=int,
+        type=str,
         default=None,
         help="Override number of runs from config (useful for quick tests)",
     )
@@ -241,7 +271,7 @@ def main():
 
     cfg = all_configs[args.experiment]
     game_type = cfg["game"]
-    num_runs = args.num_runs or cfg["num_runs"]
+    num_runs = int(args.num_runs) if args.num_runs else cfg["num_runs"]
     iterations = cfg["iterations"]
     setups = cfg["setups"]
     cross_play = cfg.get("cross_play", False)
@@ -264,6 +294,10 @@ def main():
                   f"Available models: {models}")
             sys.exit(1)
 
+    # Count behaviour setups for summary
+    behaviour_setups = [s for s in setups if s.get("behaviour_name")]
+    default_setups = [s for s in setups if not s.get("behaviour_name")]
+
     # Summary
     print(f"{'='*60}")
     print(f"Experiment : {args.experiment}")
@@ -273,7 +307,10 @@ def main():
     for p1, p2 in pairs:
         label = "self-play" if p1 == p2 else "cross-play"
         print(f"  {_safe_name(p1)} vs {_safe_name(p2)}  ({label})")
-    print(f"Setups     : {len(setups)}")
+    print(f"Setups     : {len(setups)} ({len(default_setups)} default, {len(behaviour_setups)} with personas)")
+    for s in setups:
+        bname = s.get("behaviour_name", "default")
+        print(f"  - {bname}: {s}")
     print(f"Runs/combo : {num_runs}")
     print(f"Total games: {len(pairs) * len(setups) * num_runs}")
     print(f"{'='*60}\n")

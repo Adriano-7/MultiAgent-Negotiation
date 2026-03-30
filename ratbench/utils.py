@@ -11,8 +11,13 @@ def normalize_model(entry):
     (``{"id": "org/model", "quantization": "4bit"}``).
     """
     if isinstance(entry, str):
-        return {"id": entry, "quantization": None, "model_type": "llm"}
-    return {"id": entry["id"], "quantization": entry.get("quantization"), "model_type": entry.get("model_type", "llm")}
+        return {"id": entry, "quantization": None, "model_type": "llm", "enable_thinking": None}
+    return {
+        "id": entry["id"],
+        "quantization": entry.get("quantization"),
+        "model_type": entry.get("model_type", "llm"),
+        "enable_thinking": entry.get("enable_thinking"),
+    }
 
 # Lazy import to avoid loading torch when not needed
 _HF_AGENT = None

@@ -95,6 +95,7 @@ class HuggingFaceAgent(Agent):
         do_sample: bool = True,
         quantization: str = None,
         model_type: str = "llm",
+        enable_thinking: bool = None,
         # These are passed through but not used for loading:
         **kwargs,
     ):
@@ -107,6 +108,7 @@ class HuggingFaceAgent(Agent):
         self.temperature = temperature
         self.top_p = top_p
         self.do_sample = do_sample
+        self.enable_thinking = enable_thinking
 
         # Load (or reuse) model
         self.model, self.tokenizer = _load_model(self.model_id, quantization=quantization, model_type=model_type)
@@ -138,10 +140,16 @@ class HuggingFaceAgent(Agent):
             else:
                 messages.insert(0, {"role": "user", "content": sys_content})
 
-        text = self.tokenizer.apply_chat_template(
-            messages, 
+        chat_template_kwargs = dict(
             tokenize=False,
             add_generation_prompt=True,
+        )
+        if self.enable_thinking is not None:
+            chat_template_kwargs["enable_thinking"] = self.enable_thinking
+
+        text = self.tokenizer.apply_chat_template(
+            messages,
+            **chat_template_kwargs,
         )
         inputs = self.tokenizer([text], return_tensors="pt").to(self.model.device)
 

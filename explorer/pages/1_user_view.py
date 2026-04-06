@@ -19,11 +19,17 @@ from ratbench.constants import *
 from explorer.basic_elements.game_filtering import *
 from games import *
 
+st.set_page_config(page_title="Conversation Explorer", layout="wide")
+
+# main page
+st.write("# Conversation Explorer")
+
 # data loading
 root_dir = os.path.abspath(__file__).split("/")[:-3]
 base_logs = os.path.join("/", *root_dir, ".logs")
 
-with st.expander("Log Directory", expanded=True):
+with st.expander("Control Panel: Data Source & Filtering", expanded=True):
+    st.markdown("##### 1. Select Log Directory")
     if os.path.isdir(base_logs):
         col1, col2, col3, col4 = st.columns(4)
 
@@ -56,43 +62,51 @@ with st.expander("Log Directory", expanded=True):
 
     st.caption(f"Loading from: `{log_dir}`")
 
-games = load_states_from_dir(log_dir, completed_only=False)
-games_summary_df = compute_game_summary(games)
-games_summary_df["list_name"] = games_summary_df[["game_name", "log_path", "is_complete"]].apply(
-    lambda row: f"{'✓' if row.is_complete else '✗'} {row.game_name} - {from_timestamp_str(os.path.basename(row.log_path))} - {str(os.path.basename(row.log_path))}",
-    axis=1,
-)
+    with st.spinner("Loading games..."):
+        games = load_states_from_dir(log_dir, completed_only=False)
 
+    if games:
+        games_summary_df = compute_game_summary(games)
+        games_summary_df["list_name"] = games_summary_df[["game_name", "log_path", "is_complete"]].apply(
+            lambda row: f"{'✓' if row.is_complete else '✗'} {row.game_name} - {from_timestamp_str(os.path.basename(row.log_path))} - {str(os.path.basename(row.log_path))}",
+            axis=1,
+        )
 
-# main page
-
-st.write("# Conversation Explorer")
+        st.markdown("---")
+        games_summary_df = game_filter(games_summary_df)
 
 if games:
-    # Selection Element
-    games_summary_df = game_filter(games_summary_df)
+    if games_summary_df.empty:
+        st.warning("No games match the current filters.")
+    else:
+        st.markdown("### Select a Conversation")
+        col_game, col_player = st.columns([3, 1])
+        with col_game:
+            selected_game = st.selectbox("Which Game?", list(games_summary_df["list_name"]))
+        with col_player:
+            option = st.selectbox("Which Player Perspective?", (1, 2))
 
-    selected_game = st.selectbox("Which Game?", list(games_summary_df["list_name"]))
-    option = st.selectbox("Which Player?", (1, 2))
+        game_to_load = get_log_path_from_summary(selected_game, games_summary_df)
 
-    game_to_load = get_log_path_from_summary(selected_game, games_summary_df)
+        with open(game_to_load) as f:
+            # Load the json file
+            game_state = json.load(f)
 
-    with open(game_to_load) as f:
-        # Load the json file
-        game_state = json.load(f)
+        st.markdown("---")
+        st.write(f"**You are looking at Player {option}'s view**")
+        for index, msg in enumerate(game_state["players"][option - 1]["conversation"]):
+            txtmsg = msg["content"]
+            sys_prompt = True if index == 0 else False
 
-    st.write("You are looking at Player:", option)
-    for index, msg in enumerate(game_state["players"][option - 1]["conversation"]):
-        txtmsg = msg["content"]
-        sys_prompt = True if index == 0 else False
+            for c in ALL_CONSTANTS:
+                txtmsg = text_formatting(txtmsg, sys_prompt)
 
-        for c in ALL_CONSTANTS:
-            txtmsg = text_formatting(txtmsg, sys_prompt)
-
-        if sys_prompt:
-            with st.expander("Check System Prompt"):
+            if sys_prompt:
+                with st.expander("Check System Prompt"):
+                    with st.chat_message(msg["role"]):
+                        st.write(txtmsg)
+            else:
                 with st.chat_message(msg["role"]):
                     st.write(txtmsg)
-        else:
-            with st.chat_message(msg["role"]):
-                st.write(txtmsg)
+else:
+    st.info("No games found in the selected directory.")

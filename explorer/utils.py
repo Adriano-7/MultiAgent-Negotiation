@@ -27,55 +27,49 @@ ALL_CONSTANTS = [
 
 
 def get_from_summary(key, game_state, default=None):
-    if key in game_state.game_state[-1]["summary"]:
-        return game_state.game_state[-1]["summary"][key]
-    else:
-        return default
+    summary = game_state.game_state[-1].get("summary", {})
+    return summary.get(key, default)
 
 
 def compute_game_summary(game_states):
-    # print(game_states[0].game_state[-1]["summary"].keys())
     game_name = np.array([g.__class__.__name__ for g in game_states])[:, None]
     log_path = np.array([g.log_path for g in game_states])[:, None]
+    is_complete = np.array([getattr(g, "is_complete", True) for g in game_states])[:, None]
     models = np.array([[p.model for p in g.players] for g in game_states])
     beheaviour = np.array(
         [g.game_state[0]["settings"]["player_social_behaviour"] for g in game_states]
     )
-    outcomes = np.array([get_from_summary("player_outcome", g) for g in game_states])
-    valuations = np.array(
-        [
-            get_from_summary("player_valuation", g, default=[None, None])
-            for g in game_states
-        ]
-    )
-    initial_resources = np.array(
-        [get_from_summary("initial_resources", g) for g in game_states]
-    )
-    final_resources = (
-        np.array([get_from_summary("final_resources", g) for g in game_states]),
-    )
-
-    resources_delta = (final_resources - initial_resources)[0]
-    resources_delta = np.array(
-        [
-            v.value(r) if v else r.value()
-            for r, v in zip(
-                resources_delta.reshape(
-                    -1,
-                ),
-                valuations.reshape(-1),
-            )
-        ]
-    )
-    resources_delta = resources_delta.reshape(-1, 2)
+    try:
+        valuations = np.array(
+            [get_from_summary("player_valuation", g, default=[None, None]) for g in game_states]
+        )
+        initial_resources = np.array(
+            [get_from_summary("initial_resources", g) for g in game_states]
+        )
+        final_resources = (
+            np.array([get_from_summary("final_resources", g) for g in game_states]),
+        )
+        resources_delta = (final_resources - initial_resources)[0]
+        resources_delta = np.array(
+            [
+                v.value(r) if v else r.value()
+                for r, v in zip(
+                    resources_delta.reshape(-1),
+                    valuations.reshape(-1),
+                )
+            ]
+        )
+        resources_delta = resources_delta.reshape(-1, 2)
+    except Exception:
+        resources_delta = np.full((len(game_states), 2), None)
 
     df = np.concatenate(
         (
             game_name,
             log_path,
+            is_complete,
             models,
             beheaviour,
-            # outcomes.reshape(-1, 1),
             resources_delta,
         ),
         axis=1,
@@ -85,12 +79,11 @@ def compute_game_summary(game_states):
         columns=[
             "game_name",
             "log_path",
+            "is_complete",
             "model_1",
             "model_2",
             "behaviour_1",
             "behaviour_2",
-            # "outcome_1",
-            # "outcome_2",
             "resource_delta_1",
             "resource_delta_2",
         ],
@@ -98,10 +91,9 @@ def compute_game_summary(game_states):
     return df
 
 @st.cache_data
-def load_states_from_dir(log_dir: str):
-    state_paths = sorted(
-        [os.path.join(log_dir, f, "game_state.json") for f in os.listdir(log_dir)]
-    )
+def load_states_from_dir(log_dir: str, completed_only: bool = True):
+    from glob import glob as _glob
+    state_paths = sorted(_glob(os.path.join(log_dir, "**", "game_state.json"), recursive=True))
     game_states = []
     for path in state_paths:
         try:
@@ -109,19 +101,16 @@ def load_states_from_dir(log_dir: str):
                 json_game = json.load(f, cls=GameDecoder)
                 json_game["log_path"] = os.path.dirname(path)
                 game = Game.from_dict(json_game)
-                # we only want games which have ended
-                assert (
-                    game.game_state[-1]["current_iteration"] == "END"
-                ), "WARNING : Game  {} has not ended\n".format(path)
-
+                is_complete = game.game_state[-1]["current_iteration"] == "END"
+                if completed_only and not is_complete:
+                    continue
+                game.is_complete = is_complete
                 game_states.append(game)
 
         except Exception as e:
             exception_type = type(e).__name__
             exception_message = str(e)
             stack_trace = traceback.format_exc()
-
-            # Print or use the information as needed
             print(f"\nException Type: {exception_type}")
             print(f"Exception Message: {exception_message}")
             print(f"Stack Trace:\n{stack_trace}")

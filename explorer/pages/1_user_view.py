@@ -21,18 +21,47 @@ from games import *
 
 # data loading
 root_dir = os.path.abspath(__file__).split("/")[:-3]
-log_dir = st.text_input(
-    "Log Directory", value=os.path.join("/", *root_dir, ".logs", "buysell")
-)
-log_files = glob(os.path.join(log_dir, "*", "*.json"))
-games = load_states_from_dir(log_dir)
+base_logs = os.path.join("/", *root_dir, ".logs")
+
+with st.expander("Log Directory", expanded=True):
+    if os.path.isdir(base_logs):
+        col1, col2, col3, col4 = st.columns(4)
+
+        sections = sorted([d for d in os.listdir(base_logs) if os.path.isdir(os.path.join(base_logs, d))])
+        with col1:
+            selected_section = st.selectbox("Section", sections)
+
+        section_path = os.path.join(base_logs, selected_section)
+        game_types = sorted([d for d in os.listdir(section_path) if os.path.isdir(os.path.join(section_path, d))])
+        with col2:
+            selected_game_type = st.selectbox(
+                "Game Type",
+                game_types,
+                format_func=lambda x: x.split("_")[0].capitalize(),
+            )
+
+        game_path = os.path.join(section_path, selected_game_type)
+        variants = sorted([d for d in os.listdir(game_path) if os.path.isdir(os.path.join(game_path, d))])
+        with col3:
+            selected_variant = st.selectbox("Variant", variants)
+
+        variant_path = os.path.join(game_path, selected_variant)
+        model_sizes = sorted([d for d in os.listdir(variant_path) if os.path.isdir(os.path.join(variant_path, d))])
+        with col4:
+            selected_model_size = st.selectbox("Model Size", ["All"] + model_sizes)
+
+        log_dir = variant_path if selected_model_size == "All" else os.path.join(variant_path, selected_model_size)
+    else:
+        log_dir = st.text_input("Log Directory", value=base_logs)
+
+    st.caption(f"Loading from: `{log_dir}`")
+
+games = load_states_from_dir(log_dir, completed_only=False)
 games_summary_df = compute_game_summary(games)
-print(games_summary_df.iloc[0].values)
-games_summary_df["list_name"] = games_summary_df[["game_name", "log_path"]].apply(
-    lambda row: f"{row.game_name} - {from_timestamp_str(os.path.basename(row.log_path))} - {str(os.path.basename(row.log_path))}",
+games_summary_df["list_name"] = games_summary_df[["game_name", "log_path", "is_complete"]].apply(
+    lambda row: f"{'✓' if row.is_complete else '✗'} {row.game_name} - {from_timestamp_str(os.path.basename(row.log_path))} - {str(os.path.basename(row.log_path))}",
     axis=1,
 )
-print(games_summary_df)
 
 
 # main page

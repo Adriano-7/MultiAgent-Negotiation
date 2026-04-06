@@ -109,9 +109,19 @@ class HuggingFaceAgent(Agent):
         self.top_p = top_p
         self.do_sample = do_sample
         self.enable_thinking = enable_thinking
+        self._quantization = quantization
+        self._model_type = model_type
 
-        # Load (or reuse) model
-        self.model, self.tokenizer = _load_model(self.model_id, quantization=quantization, model_type=model_type)
+        # Model is loaded lazily on first chat() call
+        self.model = model_id
+        self._model = None
+        self._tokenizer = None
+
+    def _ensure_loaded(self):
+        if self._model is None:
+            self._model, self._tokenizer = _load_model(
+                self.model_id, quantization=self._quantization, model_type=self._model_type
+            )
 
     # ------------------------------------------------------------------
     # Agent interface
@@ -130,6 +140,7 @@ class HuggingFaceAgent(Agent):
             raise ValueError(f"Agent name must contain {AGENT_ONE} or {AGENT_TWO}")
 
     def chat(self) -> str:
+        self._ensure_loaded()
         messages = [{"role": m["role"], "content": m["content"]} for m in self.conversation]
         
         if "gemma" in self.model_id.lower() and messages and messages[0]["role"] == "system":
@@ -147,25 +158,25 @@ class HuggingFaceAgent(Agent):
         if self.enable_thinking is not None:
             chat_template_kwargs["enable_thinking"] = self.enable_thinking
 
-        text = self.tokenizer.apply_chat_template(
+        text = self._tokenizer.apply_chat_template(
             messages,
             **chat_template_kwargs,
         )
-        inputs = self.tokenizer([text], return_tensors="pt").to(self.model.device)
+        inputs = self._tokenizer([text], return_tensors="pt").to(self._model.device)
 
         gen_kwargs = dict(
             max_new_tokens=self.max_new_tokens,
-            pad_token_id=self.tokenizer.eos_token_id,
+            pad_token_id=self._tokenizer.eos_token_id,
         )
         if self.do_sample:
             gen_kwargs["temperature"] = self.temperature
             gen_kwargs["top_p"] = self.top_p
             gen_kwargs["do_sample"] = True
 
-        output_ids = self.model.generate(**inputs, **gen_kwargs)
+        output_ids = self._model.generate(**inputs, **gen_kwargs)
 
         new_tokens = output_ids[0][inputs.input_ids.shape[1] :]
-        return self.tokenizer.decode(new_tokens, skip_special_tokens=True)
+        return self._tokenizer.decode(new_tokens, skip_special_tokens=True)
 
     def update_conversation_tracking(self, role: str, message: str):
         self.conversation.append({"role": role, "content": message})
@@ -181,9 +192,9 @@ class HuggingFaceAgent(Agent):
         result = cls.__new__(cls)
         memo[id(self)] = result
         for k, v in self.__dict__.items():
-            if k in ("model", "tokenizer"):
-                # Store class name string instead of the heavy object
-                setattr(result, k, type(v).__name__ if v is not None else "str")
+            if k in ("_model", "_tokenizer"):
+                # These are the heavy objects, they shouldn't be deepcopied
+                setattr(result, k, None)
             else:
                 setattr(result, k, deepcopy(v, memo))
         return result

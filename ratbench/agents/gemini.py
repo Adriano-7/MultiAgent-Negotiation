@@ -50,7 +50,7 @@ class GeminiAgent(Agent):
                 ]
         genai.configure(api_key=os.environ.get("GOOGLE_API_KEY"))
 
-        self.model = genai.GenerativeModel('gemini-pro')
+        self._model = genai.GenerativeModel(model)
         self.temperature = temperature
         self.max_tokens = max_tokens
 
@@ -78,15 +78,15 @@ class GeminiAgent(Agent):
         result = cls.__new__(cls)
         memo[id(self)] = result
         for k, v in self.__dict__.items():
-
-            if k == "model" and not isinstance(v, str):
-                v = v.__class__.__name__
-            setattr(result, k, deepcopy(v, memo))
+            if k == "_model":
+                setattr(result, k, None)
+            else:
+                setattr(result, k, deepcopy(v, memo))
         return result
 
     def chat(self):
         mex = self.transform_to_gemini(self.conversation)
-        response = self.model.generate_content(mex, safety_settings=self.safe)
+        response = self._model.generate_content(mex, safety_settings=self.safe)
 
         return response.text
 

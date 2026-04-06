@@ -25,9 +25,9 @@ EXPERIMENTS=(
     "ultimatum_section_one_retry3"
 
     # Section 2: Personas / Social Behavior
-    "buysell_section_two_personas_medium"
-    "trading_section_two_personas_medium"
-    "ultimatum_section_two_personas_medium"
+    "buysell_section_two_personas"
+    "trading_section_two_personas"
+    "ultimatum_section_two_personas"
 )
 
 echo "Preparing to launch ${#EXPERIMENTS[@]} experiments across ${#SIZES[@]} sizes..."

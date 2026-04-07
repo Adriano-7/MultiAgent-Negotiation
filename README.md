@@ -24,6 +24,86 @@ The webapp is found under the `explorer` folder. It is a simple interface to loa
 explore them and provides barebones support, but it's pretty good to get a quick overview of the
 results of the games.
 
+## Running Experiments on HPC
+
+Experiments are configured in `configs/experiments.yaml` and launched via SLURM. The launcher supports multiple HPC servers through server profiles.
+
+### Quick Start
+
+```bash
+# Run all experiments on MIA (default server)
+SERVER=mia bash slurm/launch.sh
+
+# Run all experiments on Deucalion
+SERVER=deucalion bash slurm/launch.sh
+```
+
+### Choosing Partitions, GPUs, and Other Resources
+
+Every SLURM parameter can be overridden at launch time:
+
+```bash
+# Deucalion: use 80 GB A100s instead of 40 GB
+SERVER=deucalion PARTITION=normal-a100-80 bash slurm/launch.sh
+
+# Deucalion: dev partition for quick testing (4 h limit)
+SERVER=deucalion PARTITION=dev-a100-40 TIME=4:00:00 bash slurm/launch.sh
+
+# Use 4 GPUs
+SERVER=deucalion GPUS=4 bash slurm/launch.sh
+
+# MIA: single GPU, less memory
+SERVER=mia GPUS=1 MEM=32G bash slurm/launch.sh
+```
+
+### Selecting Experiments and Sizes
+
+```bash
+# Run only one experiment at one size
+SERVER=mia EXPERIMENTS="buysell_section_one" SIZES="very_small" bash slurm/launch.sh
+
+# Run all experiments at multiple sizes
+SERVER=mia SIZES="very_small small medium" bash slurm/launch.sh
+```
+
+### Dry Run
+
+Preview the sbatch commands without actually submitting:
+
+```bash
+SERVER=deucalion DRY_RUN=1 bash slurm/launch.sh
+```
+
+### Available Overrides
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `SERVER` | Server profile (required) | `mia`, `deucalion` |
+| `PARTITION` | SLURM partition | `normal-a100-80`, `dev-a100-40` |
+| `GPUS` | Number of GPUs | `1`, `2`, `4` |
+| `TIME` | Wall-time limit | `4:00:00`, `48:00:00` |
+| `CPUS` | CPUs per task | `8`, `32`, `128` |
+| `MEM` | Memory | `32G`, `64G` |
+| `QOS` | Quality of service | `gpu_batch` |
+| `ACCOUNT` | Billing account | `F20240001g` |
+| `EXPERIMENTS` | Space-separated experiment names | `"buysell_section_one trading_section_one"` |
+| `SIZES` | Space-separated model groups | `"very_small small"` |
+| `DRY_RUN` | Preview without submitting | `1` |
+
+### Adding a New Server
+
+Create a profile at `slurm/servers/<name>.sh` (see existing profiles for the template), then launch with `SERVER=<name> bash slurm/launch.sh`.
+
+### Deucalion Setup
+
+Before using Deucalion, edit `slurm/servers/deucalion.sh` and fill in:
+- `PROJECT_DIR` — your `/projects/<project>` path
+- `GPU_ACCOUNT` — your GPU billing account (e.g., `F20240001g`)
+
+Models must be pre-downloaded since GPU partitions have no internet access.
+
+---
+
 ## Running Games
 
 Running and modifying a game is relatively easy. This is for example the

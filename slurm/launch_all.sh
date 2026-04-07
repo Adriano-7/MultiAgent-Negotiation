@@ -1,10 +1,16 @@
 #!/bin/bash
 # ============================================================
-# Launch one SLURM job per size group for given experiments.
+# DEPRECATED: Use slurm/launch.sh instead.
 #
-# Usage:
-#   bash slurm/launch_all_sizes.sh
+#   SERVER=mia bash slurm/launch.sh
+#
+# This script is kept for backward compatibility and submits
+# jobs using the MIA server defaults.
 # ============================================================
+
+echo "WARNING: slurm/launch_all.sh is deprecated."
+echo "         Use: SERVER=mia bash slurm/launch.sh"
+echo ""
 
 set -euo pipefail
 

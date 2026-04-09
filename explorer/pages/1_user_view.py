@@ -130,11 +130,21 @@ if games:
             for i in range(max_len):
                 if i < len(p1_conv):
                     with st.chat_message(p1_name, avatar=red_avatar):
-                        st.write(text_formatting(p1_conv[i]["content"], False))
+                        thinking = p1_conv[i].get("thinking", None)
+                        content = p1_conv[i]["content"]
+                        if thinking:
+                            with st.expander("💭 Chain of Thought"):
+                                st.markdown(thinking)
+                        st.write(text_formatting(content, False))
                 
                 if i < len(p2_conv):
                     with st.chat_message(p2_name, avatar=blue_avatar):
-                        st.write(text_formatting(p2_conv[i]["content"], False))
+                        thinking = p2_conv[i].get("thinking", None)
+                        content = p2_conv[i]["content"]
+                        if thinking:
+                            with st.expander("💭 Chain of Thought"):
+                                st.markdown(thinking)
+                        st.write(text_formatting(content, False))
                         
         else:
             option = int(view_option.split(" ")[1])
@@ -158,6 +168,10 @@ if games:
                     if msg["role"] == "assistant":
                         avatar = red_avatar if option == 1 else blue_avatar
                     with st.chat_message(msg["role"], avatar=avatar):
+                        thinking = msg.get("thinking", None)
+                        if thinking:
+                            with st.expander("💭 Chain of Thought"):
+                                st.markdown(thinking)
                         st.write(txtmsg)
 else:
     st.info("No games found in the selected directory.")

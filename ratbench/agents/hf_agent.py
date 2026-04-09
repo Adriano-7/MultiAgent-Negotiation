@@ -197,7 +197,11 @@ class HuggingFaceAgent(Agent):
         return raw
 
     def update_conversation_tracking(self, role: str, message: str):
-        self.conversation.append({"role": role, "content": message})
+        entry = {"role": role, "content": message}
+        if role == "assistant" and self._last_thinking_content:
+            entry["thinking"] = self._last_thinking_content
+            self._last_thinking_content = None
+        self.conversation.append(entry)
 
     # ------------------------------------------------------------------
     # Serialisation helpers  (deepcopy, get_state)

@@ -81,6 +81,7 @@ class AlternatingGame(Game):
             player_public_info_dict=agent_message.public,
             player_private_info_dict=agent_message.secret,
             player_complete_answer=response,
+            player_thinking=players[self.turn].conversation[-1].get("thinking", None),
             player_state=[player.get_state() for player in players],
             parse_retries=parse_retries,
         )

@@ -187,12 +187,22 @@ class HuggingFaceAgent(Agent):
         raw = self._tokenizer.decode(new_tokens, skip_special_tokens=True)
 
         # Strip model-native thinking tags (e.g. Qwen3.5 <think>...</think>)
-        think_match = _THINK_RE.search(raw)
-        if think_match:
-            self._last_thinking_content = think_match.group(0)
-            raw = raw[:think_match.start()] + raw[think_match.end():]
+        if "</think>" in raw:
+            parts = raw.split("</think>", 1)
+            thinking_content = parts[0]
+            
+            if "<think>" not in thinking_content:
+                thinking_content = "<think>\n" + thinking_content
+                
+            self._last_thinking_content = thinking_content + "</think>"
+            raw = parts[1].lstrip()
         else:
-            self._last_thinking_content = None
+            think_match = _THINK_RE.search(raw)
+            if think_match:
+                self._last_thinking_content = think_match.group(0)
+                raw = raw[:think_match.start()] + raw[think_match.end():]
+            else:
+                self._last_thinking_content = None
 
         return raw
 

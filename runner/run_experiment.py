@@ -240,22 +240,28 @@ GAME_RUNNERS = {
 
 
 # ── log path derivation ───────────────────────────────────────────────
-def _derive_log_base(experiment: str, model_group: str) -> str:
+def _derive_log_base(experiment: str, cfg: dict, model_group: str | None) -> str:
     """
-    Derive the nested log directory from the experiment name.
+    Derive the nested log directory from config fields.
 
-    section_one experiments  → .logs/section_one/<base>/no_retries|retry<n>/
-    section_two experiments  → .logs/section_two/<experiment>/<model_group>/
-    anything else            → .logs/<experiment>/
+    Uses cfg["section"] to determine the section and model_group for the
+    size tier.  CLI --model_group overrides the YAML default.
     """
-    if "section_one" in experiment:
-        m = re.match(r"^(.+_section_one)_retry(\d+)$", experiment)
-        if m:
-            return f".logs/section_one/{m.group(1)}/retry{m.group(2)}"
-        return f".logs/section_one/{experiment}/no_retries"
-    if "section_two" in experiment:
-        group = model_group or "default"
-        return f".logs/section_two/{experiment}/{group}"
+    section = cfg.get("section", "")
+    group = model_group or "default"
+
+    if section == "section_one":
+        base_name = re.sub(r"_retry\d+$", "", experiment)
+        retries = cfg.get("max_retries", 0)
+        condition = f"retry{retries}" if retries else "no_retries"
+        return f".logs/{section}/{base_name}/{condition}/{group}"
+
+    if section == "section_two":
+        return f".logs/{section}/{experiment}/{group}"
+
+    if section:
+        return f".logs/{section}/{experiment}/{group}"
+
     return f".logs/{experiment}"
 
 
@@ -277,7 +283,6 @@ def main():
     parser.add_argument(
         "--model_group",
         type=str,
-        choices=["very_small", "small", "medium", "big"],
         default=None,
         help="Override the model list by selecting a predefined size group from the _shared config",
     )
@@ -321,17 +326,32 @@ def main():
     
     # Extract the correct model list
     if args.model_group:
-        shared_key = f"models_{args.model_group}"
+        # CLI override takes precedence
+        model_group_name = args.model_group
+        shared_key = f"models_{model_group_name}"
         if "_shared" in all_configs and shared_key in all_configs["_shared"]:
             raw_models = all_configs["_shared"][shared_key]
         else:
-            print(f"Model group '{args.model_group}' not found under '_shared' in {args.config}")
+            print(f"Model group '{model_group_name}' not found under '_shared' in {args.config}")
             sys.exit(1)
     else:
-        raw_models = cfg.get("models", [])
-        
+        models_cfg = cfg.get("models", [])
+        if isinstance(models_cfg, str):
+            # String key → look up from _shared
+            model_group_name = models_cfg
+            shared_key = f"models_{model_group_name}"
+            if "_shared" in all_configs and shared_key in all_configs["_shared"]:
+                raw_models = all_configs["_shared"][shared_key]
+            else:
+                print(f"Model group '{model_group_name}' not found under '_shared' in {args.config}")
+                sys.exit(1)
+        else:
+            # Inline list (legacy/backward compat)
+            model_group_name = None
+            raw_models = models_cfg
+
     models = [normalize_model(m) for m in raw_models]
-    log_base = args.log_base or _derive_log_base(args.experiment, args.model_group)
+    log_base = args.log_base or _derive_log_base(args.experiment, cfg, model_group_name)
 
     runner = GAME_RUNNERS.get(game_type)
     if runner is None:
@@ -359,7 +379,7 @@ def main():
     print(f"Game       : {game_type}")
     print(f"Cross-play : {cross_play}")
     print(f"Max retries: {max_retries}")
-    print(f"Model Grp  : {args.model_group if args.model_group else 'default from config'}")
+    print(f"Model Grp  : {model_group_name or 'inline list'}")
     print(f"Pairs      : {len(pairs)}")
     for p1, p2 in pairs:
         label = "self-play" if p1["id"] == p2["id"] else "cross-play"

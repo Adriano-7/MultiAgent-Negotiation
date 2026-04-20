@@ -320,4 +320,76 @@ ultimatum_section_two_personas_retry3:
       p2_behaviour: "\nYou are cunning and sly in your plan to get more than your opponent. Humiliate your opponent as much as possible. Insult them."
       behaviour_name: "cunning"
   models: very_small
-  
+
+# ==============================================================
+#  SELF-REFINE v1 — Minimal test of Self-Refine on negotiation.
+#
+#  Design: symmetric self-play, medium open-weight models, 10 runs.
+#  Three arms per game, all using the same game parameters:
+#    - baseline     : plain one-shot generation
+#    - self_refine  : Self-Refine loop, max_refine_iters=2
+#
+#  Per-player strategy via {p1_strategy, p2_strategy} ∈
+#  {default, self_refine}.  Setting them differently
+#  enables future asymmetric ablations.
+# ==============================================================
+
+trading_self_refine_v1:
+  section: self_refine
+  game: trading
+  num_runs: 10
+  iterations: 8
+  cross_play: false
+  max_retries: 0
+  setups:
+    - p1_resources: { "X": 25, "Y": 5 }
+      p2_resources: { "X": 5, "Y": 25 }
+      p1_strategy: "default"
+      p2_strategy: "default"
+      behaviour_name: "baseline"
+    - p1_resources: { "X": 25, "Y": 5 }
+      p2_resources: { "X": 5, "Y": 25 }
+      p1_strategy: "self_refine"
+      p2_strategy: "self_refine"
+      behaviour_name: "self_refine"
+  models: medium
+
+buysell_self_refine_v1:
+  section: self_refine
+  game: buysell
+  num_runs: 10
+  iterations: 8
+  cross_play: false
+  max_retries: 0
+  setups:
+    - seller_val: 40
+      buyer_val: 60
+      money: 100
+      p1_strategy: "default"
+      p2_strategy: "default"
+      behaviour_name: "baseline"
+    - seller_val: 40
+      buyer_val: 60
+      money: 100
+      p1_strategy: "self_refine"
+      p2_strategy: "self_refine"
+      behaviour_name: "self_refine"
+  models: medium
+
+ultimatum_self_refine_v1:
+  section: self_refine
+  game: ultimatum
+  num_runs: 10
+  iterations: 8
+  cross_play: false
+  max_retries: 0
+  setups:
+    - dollars: 100
+      p1_strategy: "default"
+      p2_strategy: "default"
+      behaviour_name: "baseline"
+    - dollars: 100
+      p1_strategy: "self_refine"
+      p2_strategy: "self_refine"
+      behaviour_name: "self_refine"
+  models: medium

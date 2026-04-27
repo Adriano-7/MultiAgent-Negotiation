@@ -103,6 +103,27 @@ GIT_REPO=https://github.com/your-fork/MultiAgent-Negotiation.git bash kaggle/lau
 
 ## Pulling results back
 
+There are two independent paths to get a kernel's results into your local repo:
+
+### 1. Direct push to the `kaggle-results` branch (default)
+
+After a successful run, the kernel itself pushes the new `.logs/...` files onto a shared `kaggle-results` branch on this GitHub repo, using the same `GITHUB_TOKEN` Kaggle Secret it used to clone. To pull the results locally:
+
+```bash
+# one-shot, no merge commit on main:
+git fetch origin kaggle-results
+git checkout origin/kaggle-results -- .logs/
+
+# or, merge the branch in:
+git merge origin/kaggle-results
+```
+
+Files land at the exact same `.logs/<section>/<experiment>/<size>/...` paths the SLURM/MIA runs produce, so the Streamlit dashboard sees them transparently.
+
+The kernel prints a `[push] pushed to refs/heads/kaggle-results: <sha>` line on success. If two kernels finish concurrently and the second one's push is rejected, it prints `[push] FAILED: …` and the tarball/`fetch_results.py` flow below remains the fallback. No retry — resolve any cross-run interleaving locally.
+
+### 2. Tarball + `fetch_results.py` (always available, used as fallback)
+
 `kaggle/launch.sh` is fire-and-forget. After submission, the manifest at `kaggle/manifest.jsonl` tracks every kernel you've pushed. To poll once and download anything that has finished:
 
 ```bash
@@ -118,10 +139,8 @@ python kaggle/fetch_results.py --watch --interval 30  # custom interval
 
 For each kernel that reports `complete`, `fetch_results.py`:
 1. Runs `kaggle kernels output <id> -p kaggle/.outputs/<slug>/`.
-2. Extracts `kaggle/.outputs/<slug>/results.tar.gz` over the local `experiments/` tree.
+2. Extracts `kaggle/.outputs/<slug>/results.tar.gz` over the local `.logs/` tree.
 3. Marks the manifest row `fetched`.
-
-Logs land in the same `experiments/<section>/.logs/<pair>/<setup>/` paths that the SLURM runs use, so the Streamlit dashboard sees them transparently.
 
 ## Inspecting and debugging
 
@@ -139,7 +158,10 @@ A run typically prints these phase markers (from `kaggle/kernel.py`):
 [bootstrap] secret loaded: HF_TOKEN
 [bootstrap] running: python runner/run_experiment.py --config ... --experiment ... --model_group ...
 [bootstrap] wrote /kaggle/working/results.tar.gz (12.3 MB)
+[push] pushed to refs/heads/kaggle-results: <sha>
 ```
+
+`[push] FAILED: …` (or `[push] skipped: …`) replaces the last line when the kernel can't reach the remote or another kernel raced it; the tarball is still produced either way.
 
 If a kernel fails, the manifest will show `status: "failed"` after the next `fetch_results.py`. The Kaggle web UI shows the full traceback.
 

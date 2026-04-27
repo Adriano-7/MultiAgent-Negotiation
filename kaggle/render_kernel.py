@@ -10,6 +10,7 @@ Outputs JSON to stdout describing the rendered staging dir; launch.sh consumes i
 from __future__ import annotations
 
 import argparse
+import datetime
 import json
 import re
 import sys
@@ -52,6 +53,8 @@ def main() -> int:
     # so the API doesn't reject (or warn) about title/id mismatch.
     title = slug.replace("-", " ")
 
+    submitted_at = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
     kernel_template = Path(args.kernel_template).read_text()
     rendered = (
         kernel_template
@@ -60,6 +63,9 @@ def main() -> int:
         .replace("{{GIT_REF}}", args.git_ref)
         .replace("{{GIT_REPO}}", args.git_repo)
         .replace("{{KAGGLE_GPU_TYPE}}", args.gpu_type)
+        .replace("{{SLUG}}", slug)
+        .replace("{{KERNEL_ID}}", kernel_id)
+        .replace("{{SUBMITTED_AT}}", submitted_at)
         .replace("{{GITHUB_TOKEN}}", os.environ.get("GITHUB_TOKEN", ""))
         .replace("{{HF_TOKEN}}", os.environ.get("HF_TOKEN", ""))
     )

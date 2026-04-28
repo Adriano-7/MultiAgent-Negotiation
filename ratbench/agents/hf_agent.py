@@ -13,8 +13,6 @@ Usage:
     )
 """
 
-import json
-import os
 import re
 import torch
 from transformers import AutoModelForCausalLM, AutoModelForImageTextToText,  AutoTokenizer, BitsAndBytesConfig
@@ -22,10 +20,6 @@ from ratbench.agents.agents import Agent
 from ratbench.agents.agent_behaviours import SelfCheckingAgent, SelfRefineAgent
 import time
 from ratbench.constants import AGENT_ONE, AGENT_TWO
-
-# When running on Kaggle with pre-uploaded models, this maps HF model IDs to
-# local /kaggle/input/... paths, avoiding runtime downloads.
-_KAGGLE_MODEL_MAP: dict[str, str] = json.loads(os.environ.get("KAGGLE_MODEL_MAP", "{}"))
 
 # Matches <think>…</think> blocks, or a leading block where <think> was
 # swallowed by skip_special_tokens (text starts mid-thought, ends with </think>).
@@ -65,23 +59,13 @@ def _load_model(model_id: str, quantization=None, model_type="llm", dtype=torch.
     cache_key = (model_id, quantization)
     if cache_key not in _SHARED_MODELS:
         quant_label = f" [{quantization}]" if quantization else ""
-        local_path = _KAGGLE_MODEL_MAP.get(model_id)
-        effective_id = local_path or model_id
-        if local_path:
-            print(f"\n[HuggingFaceAgent] Loading {model_id}{quant_label} from {local_path} … (one-time)")
-        else:
-            print(f"\n[HuggingFaceAgent] Loading {model_id}{quant_label} … (one-time)")
-        tok_kwargs = dict(trust_remote_code=True)
-        if local_path:
-            tok_kwargs["local_files_only"] = True
-        tokenizer = AutoTokenizer.from_pretrained(effective_id, **tok_kwargs)
+        print(f"\n[HuggingFaceAgent] Loading {model_id}{quant_label} … (one-time)")
+        tokenizer = AutoTokenizer.from_pretrained(model_id, trust_remote_code=True)
 
         load_kwargs = dict(
             device_map=device_map,
             trust_remote_code=True,
         )
-        if local_path:
-            load_kwargs["local_files_only"] = True
 
         if quantization == "4bit":
             # Don't pass dtype — BnB handles weight loading internally;
@@ -100,7 +84,7 @@ def _load_model(model_id: str, quantization=None, model_type="llm", dtype=torch.
             load_kwargs["dtype"] = dtype
 
         AutoClass = AutoModelForImageTextToText if model_type == "vlm" else AutoModelForCausalLM
-        model = AutoClass.from_pretrained(effective_id, **load_kwargs)
+        model = AutoClass.from_pretrained(model_id, **load_kwargs)
 
         _SHARED_MODELS[cache_key] = (model, tokenizer)
     return _SHARED_MODELS[cache_key]

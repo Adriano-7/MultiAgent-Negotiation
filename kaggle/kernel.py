@@ -107,18 +107,8 @@ def install_deps() -> None:
 
 
 def run_experiment() -> None:
+    os.environ["HF_HOME"] = HF_HOME
     os.makedirs(HF_HOME, exist_ok=True)
-
-    env = os.environ.copy()
-    env["HF_HOME"] = HF_HOME
-
-    # If models were pre-uploaded to Kaggle, use their local paths instead of
-    # downloading from HuggingFace Hub at runtime (avoids disk exhaustion).
-    model_map_json = "{{MODEL_MAP_JSON}}"
-    if model_map_json and model_map_json != "{}":
-        env["KAGGLE_MODEL_MAP"] = model_map_json
-        print(f"[bootstrap] using pre-uploaded Kaggle models (no HF downloads)")
-
     cmd = [
         sys.executable, "runner/run_experiment.py",
         "--config", "configs/experiments.yaml",
@@ -127,7 +117,7 @@ def run_experiment() -> None:
     if "{{SIZE}}" not in ("", "none"):
         cmd += ["--model_group", "{{SIZE}}"]
     print(f"[bootstrap] running: {' '.join(cmd)}")
-    subprocess.run(cmd, cwd=REPO_DIR, check=True, env=env)
+    subprocess.run(cmd, cwd=REPO_DIR, check=True)
 
 
 def archive_results() -> None:

@@ -12,6 +12,7 @@ os.environ["OPENAI_API_KEY"] = "g"
 
 import os
 import json
+from pathlib import Path
 from glob import glob
 from utils import *
 import streamlit as st
@@ -20,6 +21,61 @@ from explorer.basic_elements.game_filtering import *
 from games import *
 
 st.set_page_config(page_title="Conversation Explorer", layout="wide")
+
+
+def load_refine_traces(run_dir):
+    traces = {}
+    for trace_path in sorted(Path(run_dir).glob("refine_trace_iter_*_turn_*.json")):
+        stem_parts = trace_path.stem.split("_")
+        if len(stem_parts) < 6:
+            continue
+        try:
+            iter_n = int(stem_parts[3])
+            turn_n = int(stem_parts[5])
+            with open(trace_path) as f:
+                traces[(iter_n, turn_n)] = json.load(f)
+        except Exception:
+            # Skip malformed trace files and keep the page usable.
+            continue
+    return traces
+
+
+def build_assistant_trace_lists(game_state, refine_traces):
+    traces_by_player = {0: [], 1: []}
+    for state in game_state.get("game_state", []):
+        turn = state.get("turn")
+        iteration = state.get("current_iteration")
+        if not isinstance(turn, int) or not isinstance(iteration, int):
+            continue
+        traces_by_player[turn].append(refine_traces.get((iteration, turn)))
+    return traces_by_player
+
+
+def render_refine_trace(trace, final_content):
+    if not trace:
+        return
+
+    iterations = trace.get("iterations", [])
+    title = f"Self-Refine Process ({len(iterations)} step{'s' if len(iterations) != 1 else ''})"
+    with st.expander(title):
+        initial = trace.get("initial_draft")
+        if initial:
+            st.markdown("**Initial draft**")
+            st.code(initial, language="text")
+
+        for idx, step in enumerate(iterations, start=1):
+            feedback = step.get("feedback")
+            refined = step.get("refined")
+            if feedback:
+                st.markdown(f"**Feedback {idx}**")
+                st.code(feedback, language="text")
+            if refined:
+                st.markdown(f"**Refined {idx}**")
+                st.code(refined, language="text")
+
+        st.markdown("**Final**")
+        st.code(trace.get("final") or final_content, language="text")
+
 
 # main page
 st.write("# Conversation Explorer")
@@ -91,6 +147,8 @@ if games:
         with open(game_to_load) as f:
             # Load the json file
             game_state = json.load(f)
+        refine_traces = load_refine_traces(os.path.dirname(game_to_load))
+        assistant_traces = build_assistant_trace_lists(game_state, refine_traces)
 
         st.markdown("---")
         
@@ -136,6 +194,7 @@ if games:
                             with st.expander("💭 Chain of Thought"):
                                 st.markdown(thinking)
                         st.write(text_formatting(content, False))
+                        render_refine_trace(assistant_traces[0][i] if i < len(assistant_traces[0]) else None, content)
                 
                 if i < len(p2_conv):
                     with st.chat_message(p2_name, avatar=blue_avatar):
@@ -145,6 +204,7 @@ if games:
                             with st.expander("💭 Chain of Thought"):
                                 st.markdown(thinking)
                         st.write(text_formatting(content, False))
+                        render_refine_trace(assistant_traces[1][i] if i < len(assistant_traces[1]) else None, content)
                         
         else:
             option = int(view_option.split(" ")[1])
@@ -152,6 +212,7 @@ if games:
             
             red_avatar = os.path.join(os.path.dirname(os.path.dirname(__file__)), "red_robot.svg")
             blue_avatar = os.path.join(os.path.dirname(os.path.dirname(__file__)), "blue_robot.svg")
+            assistant_index = 0
             
             for index, msg in enumerate(game_state["players"][option - 1]["conversation"]):
                 txtmsg = msg["content"]
@@ -173,5 +234,10 @@ if games:
                             with st.expander("💭 Chain of Thought"):
                                 st.markdown(thinking)
                         st.write(txtmsg)
+                        if msg["role"] == "assistant":
+                            traces = assistant_traces[option - 1]
+                            trace = traces[assistant_index] if assistant_index < len(traces) else None
+                            render_refine_trace(trace, msg["content"])
+                            assistant_index += 1
 else:
     st.info("No games found in the selected directory.")

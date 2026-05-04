@@ -78,6 +78,21 @@ def load_status() -> pd.DataFrame:
                     condition = "baseline"
                 else:
                     continue
+            elif section_raw == "self_refine" and len(parts) == 6:
+                # self_refine/{game}_self_refine_v1/{size}/{pair_setup_combined}/timestamp/file
+                # (trading/ultimatum embed the setup tag inside the pair directory name)
+                game_type = parts[1].replace("_self_refine_v1", "")
+                model_size = parts[2]
+                raw_pair = parts[3]
+                setup_tag = "-"
+                if raw_pair.endswith("_self_refineP1_self_refineP2"):
+                    condition = "self_refine"
+                    pair_tag = raw_pair[: -len("_self_refineP1_self_refineP2")]
+                elif raw_pair.endswith("_defaultP1_defaultP2"):
+                    condition = "baseline"
+                    pair_tag = raw_pair[: -len("_defaultP1_defaultP2")]
+                else:
+                    continue
             else:
                 continue
 

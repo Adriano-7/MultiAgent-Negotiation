@@ -85,6 +85,7 @@ def load_status() -> pd.DataFrame:
         section_raw = parts[0]
 
         try:
+            is_retry = False
             if section_raw == "section_one" and len(parts) == 8:
                 game_type = parts[1].replace("_section_one", "")
                 condition = parts[2]
@@ -98,7 +99,9 @@ def load_status() -> pd.DataFrame:
                 pair_tag = parts[4]
                 setup_tag = "-"
             elif section_raw == "section_two" and len(parts) >= 7:
-                game_type = parts[1].replace("_section_two_personas", "")
+                exp_name = parts[1]
+                is_retry = exp_name.endswith("_retry3")
+                game_type = exp_name.replace("_retry3", "").replace("_section_two_personas", "")
                 model_size = parts[2]
                 pair_tag = parts[3]
                 setup_tag = parts[4]
@@ -107,7 +110,9 @@ def load_status() -> pd.DataFrame:
                     "default",
                 )
             elif section_raw == "section_two" and len(parts) == 6:
-                game_type = parts[1].replace("_section_two_personas", "")
+                exp_name = parts[1]
+                is_retry = exp_name.endswith("_retry3")
+                game_type = exp_name.replace("_retry3", "").replace("_section_two_personas", "")
                 model_size = parts[2]
                 raw_pair = parts[3]
                 setup_tag = "-"
@@ -147,6 +152,8 @@ def load_status() -> pd.DataFrame:
 
             if section_raw == "section_one":
                 retry = "retry" if condition == "retry3" else "no_retry"
+            elif section_raw == "section_two":
+                retry = "retry" if is_retry else "no_retry"
             else:
                 retry = "no_retry"
 

@@ -65,6 +65,7 @@ CONFIG="${CONFIG:-configs/experiments.yaml}"
 MODEL="${MODEL:-}"
 NUM_RUNS="${NUM_RUNS:-}"
 SIZE="${SIZE:-}"
+EXTRA_ARGS="${EXTRA_ARGS:-}"
 
 # ── Environment from .env ────────────────────────────────────
 set -a
@@ -76,9 +77,10 @@ mkdir -p logs/slurm
 
 # ── Build and run command ────────────────────────────────────
 CMD="python runner/run_experiment.py --config ${CONFIG} --experiment ${EXPERIMENT}"
-[ -n "$MODEL" ]    && CMD="$CMD --model \"$MODEL\""
-[ -n "$NUM_RUNS" ] && CMD="$CMD --num_runs $NUM_RUNS"
-[ -n "$SIZE" ]     && CMD="$CMD --model_group $SIZE"
+[ -n "$MODEL" ]      && CMD="$CMD --model \"$MODEL\""
+[ -n "$NUM_RUNS" ]   && CMD="$CMD --num_runs $NUM_RUNS"
+[ -n "$SIZE" ]       && CMD="$CMD --model_group $SIZE"
+[ -n "$EXTRA_ARGS" ] && CMD="$CMD $EXTRA_ARGS"
 
 echo "============================================"
 echo "SERVER     : ${SERVER:-unknown}"

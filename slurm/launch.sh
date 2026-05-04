@@ -126,6 +126,7 @@ echo "Nodelist   : ${SLURM_NODELIST:-<any>}"
 echo "Sizes      : ${SIZE_ARRAY[*]}"
 echo "Experiments: ${#EXP_ARRAY[@]}"
 echo "Total jobs : $TOTAL"
+echo "Extra args : ${EXTRA_ARGS:-(none)}"
 echo "Dry run    : ${DRY_RUN:-no}"
 echo "============================================"
 
@@ -142,6 +143,7 @@ for SIZE in "${SIZE_ARRAY[@]}"; do
             JOB_NAME="${EXP}_${SIZE}"
             EXPORT_STR="ALL,${ENV_VARS},EXPERIMENT=${EXP},SIZE=${SIZE}"
         fi
+        [ -n "${EXTRA_ARGS:-}" ] && EXPORT_STR+=",EXTRA_ARGS=${EXTRA_ARGS}"
 
         FULL_CMD=(sbatch
             --job-name="$JOB_NAME"

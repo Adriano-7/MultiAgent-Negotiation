@@ -65,13 +65,41 @@ def evict_unused_models(keep_keys: set, evict_disk: bool = False):
         torch.cuda.empty_cache()
 
 
+def _pack_device_map():
+    """Pick a whole-GPU placement that packs models across visible GPUs.
+
+    ``device_map="auto"`` infers placement from *total* (not currently-free)
+    VRAM, so several models loaded independently — e.g. a heterogeneous team's
+    members plus the opponent, each its own ``HuggingFaceAgent`` — all land on
+    ``cuda:0`` and OOM it while the other GPU sits idle. Here we pin each new
+    model to the GPU with the most free memory *right now*, so co-resident
+    models pack across GPUs instead of stacking.
+
+    Returns ``"auto"`` when packing doesn't apply (no CUDA, a single GPU, or
+    disabled via ``NEGOTIATION_GPU_PACK=0`` — the escape hatch for a single
+    model that must shard across GPUs).
+    """
+    import os
+    if os.environ.get("NEGOTIATION_GPU_PACK", "1") == "0":
+        return "auto"
+    if not torch.cuda.is_available() or torch.cuda.device_count() <= 1:
+        return "auto"
+    free = [(torch.cuda.mem_get_info(i)[0], i) for i in range(torch.cuda.device_count())]
+    return {"": max(free)[1]}
+
+
 def _load_model(model_id: str, quantization=None, model_type="llm", dtype=torch.bfloat16, device_map="auto"):
     """Load or retrieve a cached (model, tokenizer) pair.
 
     Args:
         quantization: None (no quantization), "4bit", or "8bit".
         model_type: "llm" (text-only, default) or "vlm" (vision-language).
+        device_map: passed to ``from_pretrained``. The default ``"auto"`` is
+            replaced with a packed single-GPU placement when multiple GPUs are
+            visible (see :func:`_pack_device_map`).
     """
+    if device_map == "auto":
+        device_map = _pack_device_map()
     cache_key = (model_id, quantization)
     if cache_key not in _SHARED_MODELS:
         quant_label = f" [{quantization}]" if quantization else ""

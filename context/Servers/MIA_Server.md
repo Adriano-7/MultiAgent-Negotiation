@@ -43,7 +43,7 @@ In the table below you'll find a short description with the main characteritics 
 | QoS policy | description |
 | --- | --- |
 | `gpu` | allows jobs that request up to 2 gpus, both interactive (`srun`) and batch (`sbatch`); max time per job is 3 hours; only 1 job may be submitted/running at a time. |
-| `gpu_batch` | allows **batch jobs only** (`sbatch`) with requests of up to 1 gpu; max time per job is 12 hours; each user is capped at 1 gpu total across all running jobs, and up to 10 submitted jobs. |
+| `gpu_batch` | allows **batch jobs only** (`sbatch`) with requests of up to 2 gpus; max time per job is 12 hours; each user is capped at 2 gpus total across all running jobs, and up to 10 submitted jobs. No QoS-level CPU/memory cap (bounded only by node capacity). |
 | `cpu` | allows both interactive (`srun`) and batch (`sbatch`) without gpus; max time per job is 30 minutes; up to 3 submitted jobs per user. |
 
 ## Specific Limits
@@ -52,9 +52,9 @@ Based on the QoS policies, user jobs are strictly capped at the following resour
 
 | Resource | Maximum Limit | Notes |
 | --- | --- | --- |
-| **CPUs** | 2 CPUs per task | Job requests for > 2 CPUs (e.g., `--cpus-per-task=3`) will be rejected. |
-| **Memory** | 8 GB | Job requests exceeding 8192 MB (e.g., `--mem=8193`) will fail. |
-| **GPUs** | 2 GPUs (`gpu` QoS) / 1 GPU (`gpu_batch` QoS) | Only the `gpu` and `gpu_batch` QoS policies permit GPU allocation. Under `gpu_batch`, a user may hold at most 1 GPU total across all running jobs. |
+| **CPUs** (`cpu` QoS) | 2 CPUs per task | Job requests for > 2 CPUs (e.g., `--cpus-per-task=3`) will be rejected. Applies to the `cpu` QoS only; `gpu_batch` has no QoS-level CPU cap. |
+| **Memory** (`cpu` QoS) | 8 GB | Job requests exceeding 8192 MB (e.g., `--mem=8193`) will fail. Applies to the `cpu` QoS only; `gpu_batch` has no QoS-level memory cap (bounded by node capacity, ~512 GB/node). |
+| **GPUs** | 2 GPUs (`gpu` QoS) / 2 GPUs (`gpu_batch` QoS) | Only the `gpu` and `gpu_batch` QoS policies permit GPU allocation. Under `gpu_batch`, a user may request up to 2 GPUs per job and hold at most 2 GPUs total across all running jobs. |
 | **Time (`cpu`)** | 30 minutes | Maximum execution time for the `cpu` QoS. |
 | **Time (`gpu`)** | 3 hours | Maximum execution time for the `gpu` QoS. |
 | **Time (`gpu_batch`)** | 12 hours | Maximum execution time for the `gpu_batch` QoS. |
@@ -123,6 +123,14 @@ echo "-----------------------"
 echo `uname -a`
 echo "-----------------------"
 nvidia-smi
+```
+
+To request **two GPUs** instead, change the `--gres` line to `--gres=gpu:2` (allowed under `gpu_batch` up to the 2-GPU per-job / 2-GPU per-user limit):
+
+```bash
+#SBATCH -p normal
+#SBATCH --qos gpu_batch
+#SBATCH --gres=gpu:2
 ```
 
 Now run the following command:

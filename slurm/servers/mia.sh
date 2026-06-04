@@ -15,7 +15,7 @@ SLURM_QOS="${QOS:-gpu_batch}"
 SLURM_ACCOUNT="${ACCOUNT:-}"              # MIA does not require accounts
 SLURM_TIME="${TIME:-12:00:00}"
 SLURM_CPUS_PER_TASK="${CPUS:-2}"
-SLURM_MEM="${MEM:-8G}"
+SLURM_MEM="${MEM:-32G}"
 SLURM_GPU_DIRECTIVE="--gres=gpu:${GPUS:-1}"   # MIA uses --gres syntax; gpu_batch QoS caps at 2 GPUs (use GPUS=2 for hetero teams)
 SLURM_NODELIST="${NODELIST:-}"
 

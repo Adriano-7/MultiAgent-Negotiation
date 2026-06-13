@@ -12,12 +12,12 @@ In this chapter, we benchmark the selected models on NegotiationArena (Section~\
 
 % WHY DO GAMES FAIL? WHO FAILS THE MOST?
 
-Every game depends on the model's ability to follow the protocol and output the correct XML tags. A single missing tag can cause a game to fail prematurely, which is a problem for small open-weight models. Without self-correction, more than a quarter of BuySell games and nearly a fifth of Trading games end prematurely at the very-small tier (Figure~\ref{fig:parse-completion-retry-bars} , Appendix~\ref{ap3:additional-figures}).
+Every game depends on the model's ability to follow the protocol and output the correct XML tags. A single missing tag can cause a game to fail prematurely, which is a problem for small open-weight models. Without self-correction, more than a quarter of BuySell games and nearly a fifth of Trading games end prematurely at the very-small tier (Figure~\ref{fig:parse-completion-retry-bars} , Appendix~\ref{ap3:additional-results}).
 
 
 Table~\ref{tab:cross-play-completion} shows that completion without retries does not scale uniformly with model size. The small tier is the most reliable, with at least 96\% completion in all three games, while the medium tier falls to 67.8\% in Trading and 86.7\% in the Ultimatum Game. 
 
-Failures are also unevenly distributed across models (Figure~\ref{fig:parse-errors-by-model}): \texttt{Gemma-3-4B-it} alone accounts for 69 parse errors, followed by \texttt{Qwen-3.5-27B} (45) and \texttt{Mistral-Small-3.2-24B} (43). The main reasons for failure are game-specific (Figure~\ref{fig:parse-errors-by-game}, Appendix~\ref{ap3:additional-figures}): in Trading, games end mainly due to a missing \texttt{<player answer>} tag or unparseable resource amounts; in BuySell, parse errors come mostly from a malformed trade line; and in Ultimatum, failures are usually due to a missing \texttt{<move>} tag.
+Failures are also unevenly distributed across models (Figure~\ref{fig:parse-errors-by-model}): \texttt{Gemma-3-4B-it} alone accounts for 69 parse errors, followed by \texttt{Qwen-3.5-27B} (45) and \texttt{Mistral-Small-3.2-24B} (43). The main reasons for failure are game-specific (Figure~\ref{fig:parse-errors-by-game}, Appendix~\ref{ap3:additional-results}): in Trading, games end mainly due to a missing \texttt{<player answer>} tag or unparseable resource amounts; in BuySell, parse errors come mostly from a malformed trade line; and in Ultimatum, failures are usually due to a missing \texttt{<move>} tag.
 
 \begin{table}
 \centering
@@ -54,7 +54,7 @@ Failures are also unevenly distributed across models (Figure~\ref{fig:parse-erro
 \end{figure}
 
 % DOES OUR RETRY LOOP WORK? IF SO DOES IT CHANGE RESULTS?
-The proposed self-correction loop (Section~\ref{sec:retry-ablation}) corrects most malformed moves. Of the 10\% of moves that triggered a self-correction loop, 75\% were fixed on the first retry and 93\% within the three-retry budget. Only 28 games still failed to complete, mostly those involving Gemma models. Qwen triggered most of the retries (284 of 414) but almost always recovered (Figure~\ref{fig:retried-moves-resolution}).
+The proposed self-correction loop (Section~\ref{sec:retry-ablation}) corrects most malformed moves. Of the 10\% of moves that triggered a self-correction loop, 75\% were fixed on the first retry and 93\% within the three-retry budget (Figure~\ref{fig:retried-moves-resolution}). Only 28 games still failed to complete, mostly those involving Gemma models. Qwen triggered most of the retries (284 of 414) but almost always recovered .
 
 \begin{figure}
     \centering
@@ -64,7 +64,7 @@ The proposed self-correction loop (Section~\ref{sec:retry-ablation}) corrects mo
 \end{figure}
 
 
-The self-correction loop does not materially change the rankings. Comparing win rates under no retries and retry-3 gives a Spearman correlation of $\rho = 0.92$, and the pooled win rate by family and tier is essentially unchanged (Figure~\ref{fig:winrate-retry-ablation}, Appendix~\ref{ap3:additional-figures}). Because the retry loop preserves the overall ranking while recovering lost games, the rest of the chapter focuses on the retry-3 results.
+The retry loop does not materially change the rankings. Comparing win rates under no retries and retry-3 gives a Spearman $\rho$ of $0.92$, and the pooled win rate by family and tier preserves the relative ordering of families (Figure~\ref{fig:winrate-retry-ablation}, Appendix~\ref{ap3:additional-results}). Because the retry loop preserves the overall ranking while recovering lost games, the rest of the chapter focuses on the retry-3 results.
 
 \subsection{Model-Family Performance}
 
@@ -72,7 +72,7 @@ The self-correction loop does not materially change the rankings. Comparing win 
 
 We now ask the central question: which model family is the best negotiator? Throughout this subsection, win rate and payoff are calculated over payoff-valid completed games (excluding draws) with both seats pooled.
 
-As Figure~\ref{fig:cross-play-family-winrate} shows, the answer is remarkably consistent. In every single tier, the pooled WinRate across the three games shows that Qwen is the best performer, winning 63.0\%, 63.4\% and 66.8\% of games, followed by Gemma (44.5-45.3\%) and Mistral (38.0-42.8\%). Table~\ref{tab:cross-play-family-summary} summarizes retry-3 negotiation performance by family and tier pairing the pooled win rate with the mean payoff in each game’s native units (resource delta in Trading, dollars kept in Ultimatum and profit in BuySell). 
+As Figure~\ref{fig:cross-play-family-winrate} shows, the answer is remarkably consistent. In every single tier, the pooled WinRate across the three games shows that Qwen is the best performer, winning 63.0\%, 63.4\% and 66.8\% of games, followed by Gemma (44.5-45.3\%) and Mistral (38.0-42.8\%). Table~\ref{tab:cross-play-family-summary} summarizes negotiation performance by family and tier pairing the pooled win rate with the mean payoff in each game’s native units (resource delta in Trading, dollars kept in Ultimatum and profit in BuySell). 
 
 \begin{figure}
     \centering
@@ -123,7 +123,7 @@ The pooled ranking, however, hides the fact that Qwen is not the strongest famil
 % This has an explanation. ON the ultimatum game a rejected split leaves both sides with zero. Very small gemma has a high rejection rate so while it keeps a respectable winrate its payoff suffers.
 %TODO: SHOULD I LEAVE THIS TO THE GAME_SPECIFIC ULTIMATUM ANALYSIS? 
 
-\subsection{Role and Turn}
+\subsection{Role and Turn} \label{sec:role-and-turn}
 
 %DOES ROLE AND TURN MATTER THE SAME WAY THEY DID WITH CLOSE-SOURCE MODELS?
 One of the conclusions reported by \textcite{bianchi_how_2024} was that turn and role matter, with the proposer (player~1) holding an advantage in the Multi-Turn Ultimatum, whereas in the Trading and BuySell scenarios the advantage shifts to the second player.
@@ -139,9 +139,21 @@ The same asymmetries appear with open-weight models. Figure~\ref{fig:cross-play-
 
 \subsection{Game-Specific Findings}
 
+%Previous subsection averaged over three very different games. Trading is zero-sum; BuySell is positive-sum with fixed surplus and Ultimatum is dominated by the proposer seat;
+
+% This subsection analyzes one scenario at a time
+
+The previous subsections averaged over three games with very different structures. Trading and BuySell both favour the second player, whereas the Ultimatum is dominated by the first; and where Trading is zero-sum, BuySell is positive-sum. This subsection analyzes the games one at a time. The per-pair win and payoff matrices for each game are provided in Appendix~\ref{ap3:additional-results} (Figures~\ref{fig:pairwise-trading} to \ref{fig:pairwise-buysell}).
+
 \paragraph{Trading.}
 
-\paragraph{Ultimatum.}
+Since both resources (X and Y) have the same value and each player starts with 30 units in total (25 of one resource, 5 of the other), every deal is zero-sum: a gain by one party is a loss of the same magnitude to the other. This may help explain the role effect in Figure~\ref{fig:cross-play-role-effect}. The second player has more information, evaluating an offer before making a counter-proposal, while the first mover must reveal what it is willing to give up.
+
+Figure~\ref{fig:pairwise-trading} shows that \texttt{Qwen-3.5-27B} is the strongest model, and the only one to win from both seats. As player~2 it wins every matchup; as player~1 it beats \texttt{Gemma-3-27B-it} but splits evenly with \texttt{Mistral-Small-3.2-24B}. Gemma's weakness in the Trading game is also evident in its being the only model family with a negative mean Trading payoff in every tier (Table~\ref{tab:cross-play-family-summary}).
+
+\paragraph{Multi-Turn Ultimatum.}
+
+Section~\ref{sec:role-and-turn} showed that in Ultimatum the role matters more than in any other game, with the proposer winning 86--97\% of decisive games. Figure~\ref{fig:ultimatum-opening-offer} shows that proposers usually open well below an even split, with families diverging in their aggressiveness. Mistral is the most generous proposer, particularly at the very-small and medium tiers, where it offers \$40.9 and \$45.8 respectively and keeps just over half of the pot. Qwen and Gemma are far more aggressive (\$7.0 for very-small Qwen and \$8.8 for small Gemma). In our case agression pays. At the medium tier for example, Gemma offers \$22.1 on average and keeps \$73.9 while Mistral offers \$45.8 and only keeps \$49.9.
 
 \begin{figure}
     \centering
@@ -150,7 +162,31 @@ The same asymmetries appear with open-weight models. Figure~\ref{fig:cross-play-
     \label{fig:ultimatum-opening-offer}
 \end{figure}
 
+\textcite{bianchi_how_2024} noticed irrational behaviour in some proprietary models playing this variation of the Ultimatum game in which players are allowed to counter the proposals they receive. Yet in some circumstances some models reject offers outright without a counter-offer, which is a value-destroying move for both.
+
+These rejections are concentrated in the very-small tier (Figure~\ref{fig:ultimatum-rejection-rate}), where \texttt{Gemma-3-4B} rejects 32.2\% of the splits (Mistral 11.9\%, Qwen 0\%). Rejected games do start from more aggressive openings (a mean offer of \$18.9, against \$24.1 in accepted games), but rejection remains value-destroying in a situation where a counter-proposal would benefit both sides.
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.95\linewidth]{figures/results/cross_play/ultimatum_rejection_rate.png}
+    \caption{Ultimatum rejection rate by responder family and parameter tier, with 95\% confidence intervals. A rejection leaves both parties with zero. Rejections are concentrated in very-small Gemma responders; Qwen responders never reject.}
+    \label{fig:ultimatum-rejection-rate}
+\end{figure}
+
+
 \paragraph{BuySell.}
+
+% BuySell is positive sum: which both parties can profit. Seller cost 40, buyer value 60, so any price in between splits a 20-ZUP surplus.
+
+Any price between the seller's cost of production (40) and the buyer's willingness to pay (60) creates a positive payoff for both sides. 
+
+% Anchoring effect, where there's strong correlation between the final accepted price and the initial price proposal also occurs in open-weight models (ρ = 0.752, close to GPT-4's 0.716).  This means the initial proposal is a strong anchor for the  final accepted price. Open higher, close higher (Fig 4.7)
+
+%Buyers win the split: 54.8% of deals close below the 50 midpoint, 28.8% at 50, mean final price 45.7; buyer captures 14.3 ZUP vs seller's 5.7 (Figs C.6/C.7).
+
+%Qwen sellers open high (48.5 → 49.0); Gemma sellers anchor too low (40.2 → 43.0). 
+
+%Irrationality: Gemma-3-12B-it opens below its own 40 cost in 76.7% of games, 46.7% of deals close below cost; Qwen almost never does.
 
 \begin{figure}
     \centering
@@ -158,6 +194,8 @@ The same asymmetries appear with open-weight models. Figure~\ref{fig:cross-play-
     \caption{Seller opening price versus final agreed price in BuySell. The strong positive relationship indicates anchoring: opening higher is associated with closing higher.}
     \label{fig:buysell-seller-anchoring}
 \end{figure}
+
+
 
 \section{Social Personas} \label{sec:results-personas}
 \section{Self-Refine} \label{sec:results-self-refine}

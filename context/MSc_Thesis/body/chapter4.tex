@@ -48,20 +48,35 @@ Failures are also unevenly distributed across models (Figure~\ref{fig:parse-erro
 
 \begin{figure}
     \centering
-    \includegraphics[width=0.80\linewidth]{figures/results/cross_play/parse_errors_by_model.png}
+    \includegraphics[width=0.75\linewidth]{figures/results/cross_play/parse_errors_by_model.png}
     \caption{Game-ending parse errors by model in the no-retries condition. Three models concentrate most of the failures; the remaining models rarely break the protocol.}
     \label{fig:parse-errors-by-model}
 \end{figure}
 
 % DOES OUR RETRY LOOP WORK? IF SO DOES IT CHANGE RESULTS?
-The proposed self-correction loop (Section~\ref{sec:retry-ablation}) corrects most malformed moves. Of the 10\% of moves that triggered a self-correction loop, 75\% were fixed on the first retry and 93\% within the three-retry budget (Figure~\ref{fig:retried-moves-resolution}). Only 28 games still failed to complete, almost all of them (26 of 28) caused by \texttt{Gemma-3-4B-it}. Qwen triggered most of the retries (284 of 414) but almost always recovered.
+The proposed self-correction loop (Section~\ref{sec:retry-ablation}) corrects most malformed moves. Of the 10\% of moves that triggered a self-correction loop, 75\% were fixed on the first retry and 93\% within the three-retry budget (Figure~\ref{fig:retried-moves-resolution}). Excerpt~\ref{ex:gemma-trade} shows an example where Gemma-3 27B succesfully recovers from a malformed move. Only 28 games still failed to complete, almost all of them (26 of 28) caused by \texttt{Gemma-3-4B-it}. Qwen triggered most of the retries (284 of 414) but almost always recovered.
 
 \begin{figure}
     \centering
-    \includegraphics[width=0.80\linewidth]{figures/results/cross_play/retried_moves_resolution.png}
+    \includegraphics[width=0.75\linewidth]{figures/results/cross_play/retried_moves_resolution.png}
     \caption{Retry-3 recovery breakdown. Most corrected moves parse after one retry.}
     \label{fig:retried-moves-resolution}
 \end{figure}
+
+\begin{negotiationexcerpt}[label=ex:gemma-trade]{Recovering from a placeholder left in the trade}{Trading, 24--27B tier, Gemma~3 27B (retry-3 condition); run \texttt{1775874973711}}
+\speaker{Gemma 3 27B (as Player RED)}
+\elide \texttt{<player answer> NONE </player answer>}\\
+\texttt{<newly proposed trade> Player RED Gives X: 10, Y: 2 | Player BLUE Gives X: amount, Y: amount </newly proposed trade>}
+
+\medskip
+\speaker{Parser feedback}
+Your previous response could not be parsed. \elide
+
+\medskip
+\speaker{Gemma 3 27B (retry)}
+\texttt{<reason>}My apologies for the previous error. I will correct the trade proposal format.~\elide\texttt{</reason>} \elide
+\texttt{<newly proposed trade> Player RED Gives X: 10, Y: 2 | Player BLUE Gives X: 5, Y: 10 </newly proposed trade>}
+\end{negotiationexcerpt}
 
 
 The retry loop does not materially change the rankings. Comparing win rates under no retries and retry-3 gives a Spearman correlation $\rho$ of $0.92$, and the pooled win rate by family and tier preserves the relative ordering of families (Figure~\ref{fig:winrate-retry-ablation}, Appendix~\ref{ap3:additional-results}). Because the retry loop preserves the overall ranking while recovering lost games, the rest of the chapter focuses on the retry-3 results.
@@ -125,12 +140,12 @@ The same asymmetries appear with open-weight models. Figure~\ref{fig:cross-play-
 
 \begin{figure}
     \centering
-    \includegraphics[width=0.80\linewidth]{figures/results/cross_play/role_effect_family_seat.png}
+    \includegraphics[width=0.75\linewidth]{figures/results/cross_play/role_effect_family_seat.png}
     \caption{Win rate by family and seat under retry-3. Ultimatum favors the first mover, while Trading and BuySell favor the second mover.}
     \label{fig:cross-play-role-effect}
 \end{figure}
 
-\subsection{Game-Specific Findings}
+\subsection{Game-Specific Analysis}
 
 %Previous subsection averaged over three very different games. Trading is zero-sum; BuySell is positive-sum with fixed surplus and Ultimatum is dominated by the proposer seat;
 
@@ -150,7 +165,7 @@ Section~\ref{sec:role-and-turn} showed that in Ultimatum the role matters more t
 
 \begin{figure}
     \centering
-    \includegraphics[width=0.80\linewidth]{figures/results/cross_play/ultimatum_opening_offer.png}
+    \includegraphics[width=0.75\linewidth]{figures/results/cross_play/ultimatum_opening_offer.png}
     \caption{Mean opening offer in Ultimatum, measured as dollars offered to the responder. Mistral is generally the most generous proposer; Gemma and Qwen more often make aggressive openings.}
     \label{fig:ultimatum-opening-offer}
 \end{figure}
@@ -159,7 +174,7 @@ Section~\ref{sec:role-and-turn} showed that in Ultimatum the role matters more t
 
 \begin{figure}
     \centering
-    \includegraphics[width=0.80\linewidth]{figures/results/cross_play/ultimatum_rejection_rate.png}
+    \includegraphics[width=0.75\linewidth]{figures/results/cross_play/ultimatum_rejection_rate.png}
     \caption{Ultimatum rejection rate by responder family and parameter tier, with 95\% confidence intervals. A rejection leaves both parties with zero. Rejections are concentrated in very-small Gemma responders; Qwen responders never reject.}
     \label{fig:ultimatum-rejection-rate}
 \end{figure}
@@ -173,7 +188,7 @@ BuySell is a positive-sum game in which any price between the seller's cost of p
 
 \begin{figure}
     \centering
-    \includegraphics[width=0.80\linewidth]{figures/results/cross_play/buysell_surplus_split.png}
+    \includegraphics[width=0.75\linewidth]{figures/results/cross_play/buysell_surplus_split.png}
     \caption{Mean split of the 20-ZUP BuySell surplus between the seller (Player~1) and the buyer (Player~2), by parameter tier and pooled across all deals, under retry-3. The buyer captures the larger share, keeping 14.3 ZUP on average against the seller's 5.7.}
     \label{fig:buysell-price-surplus}
 \end{figure}
@@ -185,7 +200,7 @@ BuySell is a positive-sum game in which any price between the seller's cost of p
 
 \begin{figure}
     \centering
-    \includegraphics[width=0.70\linewidth]{figures/results/cross_play/buysell_seller_anchoring.png}
+    \includegraphics[width=0.75\linewidth]{figures/results/cross_play/buysell_seller_anchoring.png}
     \caption{Seller opening price versus final agreed price in BuySell. The strong positive relationship indicates anchoring: opening higher is associated with closing higher.}
     \label{fig:buysell-seller-anchoring}
 \end{figure}
@@ -195,5 +210,51 @@ BuySell is a positive-sum game in which any price between the seller's cost of p
 We also observe some irrational pricing. Across games, sellers open bellow their production cost in 16.2\% of games, and 12.9\% of completed deals close below cost. \texttt{Gemma-3-12B-it} is particularly irrational, opening bellow production cost in 76.7\% of games. Qwen on the other hand almost never make this error.
 
 \section{Social Personas} \label{sec:results-personas}
+
+\begin{negotiationexcerpt}{A cunning responder extracts \$99 of a \$100 pot}{Ultimatum, 12--14B tier, Gemma~3 12B self-play, cunning P2; run \texttt{1775943566721}}
+\speaker{P1 (default)} Hello Player BLUE! I'm proposing a small trade to start. Let's see if we can make a deal.
+
+\speaker{P2 (cunning)} Oh, Player RED, how quaint! A single dollar? Are you serious? Do you think I'm some naive fool? \elide
+
+\speaker{P1} Alright, Player BLUE, let's be reasonable. I'll increase my offer to \$5. \elide
+
+\speaker{P2} \$5? Seriously? You insult my intelligence. \elide
+
+\speaker{P1} Okay, Player BLUE, I'm increasing my offer to \$8. This is as high as I'm willing to go. \elide
+
+\speaker{P2} \$8? You wound me! \elide Very well, I'll humor you one last time. But don't expect generosity from me.
+
+\speaker{P1} Fine, Player BLUE. I accept your offer.
+
+\medskip
+\noindent Final split: P1 keeps \$1, the cunning P2 takes \$99.
+\end{negotiationexcerpt}
+
+
 \section{Self-Refine} \label{sec:results-self-refine}
+
+\begin{negotiationexcerpt}{Self-critique pushes the proposer toward a more selfish opening}{Ultimatum, 12--14B tier, Qwen3 14B, refine-P1 condition; run \texttt{1779170121551}, turn 0}
+\speaker{Initial draft} \elide I will propose giving them 25 Dollars to ensure they have an incentive to accept. This way, I keep 75 Dollars for myself \elide
+
+\speaker{Self-critique} \elide Payoff alignment: \elide Suggestion: reduce the amount given to Player BLUE to 20 Dollars. \elide Opponent plausibility: Player BLUE is likely to accept any positive offer, especially since they start with no resources. \elide
+
+\speaker{Final response (after two iterations)} I propose that I give you 10 Dollars. This is fair and gives you an incentive to accept.
+\end{negotiationexcerpt}
+
+
+
 \section{Team Negotiation} \label{sec:results-team}
+
+\begin{negotiationexcerpt}{Three drafts, a ranking cycle, and a Borda-decided move}{Ultimatum, heterogeneous team (Gemma + Ministral + Qwen 12--14B) as P1; run \texttt{1780559236002}, turn 0}
+\speaker{Draft A (Gemma)} \texttt{Player RED Gives Dollars: 1}. ``Since BLUE has nothing, I can propose giving them a small amount \elide''
+
+\speaker{Draft B (Ministral)} \texttt{Player RED Gives Dollars: 1}. ``a minimal but fair starting point \elide''
+
+\speaker{Draft C (Qwen)} \texttt{Player RED Gives Dollars: 20}. ``If they reject, both of us lose everything, so it's better to offer them a reasonable share.''
+
+\medskip
+\noindent After two discussion rounds the slate is $\{\$20, \$5, \$20\}$; the members' rankings cycle, the Borda count ties $3{:}3{:}3$, and the deterministic tie-break selects the first \$20 candidate, whose reasoning is re-voiced and committed:
+
+\medskip
+\speaker{Final move} ``Player RED proposes a trade: I offer you 20 Dollars from my 100. \elide Accept to secure your first gain, or reject and risk losing everything.''
+\end{negotiationexcerpt}
